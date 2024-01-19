@@ -11,4 +11,4 @@ The level of privacy using this approach is limited by the relatively low entrop
 
 So while it may be possible to intentionally 'spoof' collisions, identifying the user assoicated with those collisions is harder, unless the pool of participants is also small.
 
-While not a perfect method, this is likely is a "good" level of privacy for the intended use.
+While not a perfect method, this is a "good" level of privacy for the intended use. Further, should a participant wish to not risk disclosure of a specific app installed on their device, it's simple enough to manually edit that entry out of the source list prior to generating the hashed files. Of course, that will impact the accuracy of the overall results but this is an acceptable tradeoff.
