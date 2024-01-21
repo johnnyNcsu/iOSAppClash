@@ -24,6 +24,7 @@ fi
 eval set -- "$VALID_ARGS"
 karg="keygen=false"
 oarg="fileout=stdout"
+parg="path=."
 
 unset iarg
 
@@ -57,7 +58,13 @@ while :; do
           usage
         fi
 
-        parg="$2"
+        if [ ! -d "$2" ]; then
+          echo "ERROR: directory not found: $2" >&2
+          exit 2;
+        fi
+ 
+        parg="path=$2"
+        parg=${parg%/}
         shift 2
         ;;
 
@@ -82,7 +89,8 @@ fi
 # 2) NR=1 reads in the column headings of the input csv file and determines if
 #         it matches the expected format. If not, error out. The expected
 #         input file format is that of an exported App list from Apple's
-#         Configurator app version 2.16.
+#         Configurator app version 2.16. Expected format is:
+#            UDID,App Name,Seller
 # 3) NR=2 record 2 should contain the UDID in column 1. The value is hased and
 #         then used to construct the unique output filename for either the key
 #         or hash files. The first app name and seller name are also on line 2
@@ -91,7 +99,7 @@ fi
 # 4) otherwise process all remaining file records for output to hash or key file.
 #
 
-awk -v $karg -v $oarg 'function hash(s, cmd, hex, line) {
+awk -v $karg -v $parg -v $oarg 'function hash(s, cmd, hex, line) {
    cmd = "openssl sha256 <<< \"" s "\""
    if ( (cmd | getline line) > 0)
       hex = line
@@ -108,7 +116,7 @@ NR == 1 {
      exit
    } else {
      if ($1 != "UDID" || $2 != "App Name" || $3 != "Seller") {
-       print "ERROR: input file has incorrect format."
+       print "ERROR: input file has unexpected format."
        exit
      }
    }
@@ -117,7 +125,7 @@ NR == 1 {
    next
 }
 NR == 2 {
-   ofile=fileout "_" substr(hash($1),1, 6) ".txt";
+   ofile=path "/" fileout "_" substr(hash($1),1, 6) ".txt";
    split($2, subfield, "(");
    {gsub(/[[:space:]]+$/,"",subfield[1])};
    h[NR-1]=hash(subfield[1]);
