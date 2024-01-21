@@ -12,3 +12,19 @@ The level of privacy using this approach is limited by the relatively low entrop
 So while it may be possible to intentionally 'spoof' collisions, identifying the user assoicated with those collisions is harder, unless the pool of participants is also small.
 
 While not a perfect method, this is a "good" level of privacy for the intended use. Further, should a participant wish to not risk disclosure of a specific app installed on their device, it's simple enough to manually edit that entry out of the source list prior to generating the hashed files. Of course, that will impact the accuracy of the overall results but this is an acceptable tradeoff.
+
+## Operational Flow
+
+1. Connect your iPhone with a Macintosh computer via USB.
+2. Run [Apple's Configurator app](https://apps.apple.com/us/app/apple-configurator/id1037126344?mt=12) to read and export the list of installed 3rd party apps from your device as a csv file.
+3. Run the shell script **genHashes.sh** twice, each time with the exported list as the input source:<br>
+   a. once with the **-k** switch to create a key file that contains hashes and plain text names for each app in the input list,<br>
+   b. and again **without the -k switch** to create an upload file that contains hashes of each app in the input list.
+5. Share the upload file with other participants on a public upload site.
+6. When other participant files are available to download, download those files.
+7. Run the comparator shell script to check for common apps among devices.
+8. Share results.
+
+
+
+
