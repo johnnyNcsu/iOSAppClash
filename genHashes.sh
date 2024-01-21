@@ -1,12 +1,11 @@
 #!/bin/bash
 usage() {
-    echo "Usage: ${0##*/} -i filename [-k] [-p path] [-o filename]"
+    echo "Usage: ${0##*/} -i filename [-k] [-o filename]"
     echo "   where"
     echo "     -i  required input filename. This should be a csv file matching the format of application"
     echo "         lists exported by Apple's Configurator application."
     echo "     -k  when set, will generate a list of hash/key pairs for the installed 3rd party applications"
     echo "         on the device from which the export list came from."
-    echo "     -p  allows setting the input/output file path. The default is the local working path."
     echo "     -o  optional base output filename. The base filename will be appended with the unique ID"
     echo "         for this device. The resulting outpout filename will be of the form:"
     echo "            <filename>_UUUUUU.txt"
@@ -16,7 +15,7 @@ usage() {
     exit 2;
 }
 
-VALID_ARGS=$(getopt kp:i:o: $*)
+VALID_ARGS=$(getopt ki:o: $*)
 if [ $? -ne 0 ]; then
     usage
 fi
@@ -24,7 +23,6 @@ fi
 eval set -- "$VALID_ARGS"
 karg="keygen=false"
 oarg="fileout=stdout"
-parg="path=."
 
 unset iarg
 
@@ -50,21 +48,6 @@ while :; do
         fi
 
         oarg="fileout=$2"
-        shift 2
-        ;;
-    -p)
-        if [[ "$2" == "-"* ]]; then
-          echo "Missing required path for option '-p' ..."
-          usage
-        fi
-
-        if [ ! -d "$2" ]; then
-          echo "ERROR: directory not found: $2" >&2
-          exit 2;
-        fi
- 
-        parg="path=$2"
-        parg=${parg%/}
         shift 2
         ;;
 
@@ -99,7 +82,7 @@ fi
 # 4) otherwise process all remaining file records for output to hash or key file.
 #
 
-awk -v $karg -v $parg -v $oarg 'function hash(s, cmd, hex, line) {
+awk -v $karg -v $oarg 'function hash(s, cmd, hex, line) {
    cmd = "openssl sha256 <<< \"" s "\""
    if ( (cmd | getline line) > 0)
       hex = line
@@ -125,7 +108,7 @@ NR == 1 {
    next
 }
 NR == 2 {
-   ofile=path "/" fileout "_" substr(hash($1),1, 6) ".txt";
+   ofile=fileout "_" substr(hash($1),1, 6) ".txt";
    split($2, subfield, "(");
    {gsub(/[[:space:]]+$/,"",subfield[1])};
    h[NR-1]=hash(subfield[1]);
