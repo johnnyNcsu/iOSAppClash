@@ -1,9 +1,9 @@
 # iOSAppClash
 Programmatically identify shared 3rd party app installs on iPhones using hashed lists for privacy.
 
-What if you experience a recurring iPhone issue that is being reported by only a few other users? What if you suspect the issue might arise from an interaction with a 3rd party app but don't know which app might be causing the issue? What if several other users have reported similar behvior but are also unable to identify the casue but also suspect it is related to their profile on the phone?
+What if you experience a recurring iPhone issue that is being reported by only a few other users? What if you suspect the issue might arise from an interaction with a 3rd party app but don't know which app might be causing the issue? What if several other users have reported similar behavior but are also unable to identify the cause but also suspect it is related to their profile on the phone?
 
-In this case, it would be useful to have a means to programmatically compare profiles among this subset of users to see if they share something in common thta might be a clue to identifying the cause of the unwanted behavior. At the same time, it would be nice if the comaprisons could be done while maintaining some degree of privacy to prevent each user from having to disclose possibly sensitive information within their profiles.
+In this case, it would be useful to have a means to programmatically compare profiles among this subset of users to see if they share something in common that might be a clue to identifying the cause of the unwanted behavior. At the same time, it would be nice if the comparisons could be done while maintaining some degree of privacy to prevent each user from having to disclose possibly sensitive information within their profiles.
 
 The code in this repository aims to allow users to compare the 3rd party app installs on their phones while not openly disclosing the complete manifest of app names to one another. The approach involves generating the full list of apps, hashing that list, and then comparing the hashed list with other user's hashed lists to find matches.
 
