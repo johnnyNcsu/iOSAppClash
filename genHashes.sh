@@ -76,6 +76,20 @@ else
     echo "Missing required option and argument '-i filename' ..."
     usage
 fi
+#
+# The awk script 4 key scetions:
+# 1) the function hash generates a sha256 hash of the input string,
+# 2) NR=1 reads in the column headings of the input csv file and determines if
+#         it matches the expected format. If not, error out. The expected
+#         input file format is that of an exported App list from Apple's
+#         Configurator app version 2.16.
+# 3) NR=2 record 2 should contain the UDID in column 1. The value is hased and
+#         then used to construct the unique output filename for either the key
+#         or hash files. The first app name and seller name are also on line 2
+#         and used to populate the hash or key files as determined by the -k
+#         switch.
+# 4) otherwise process all remaining file records for output to hash or key file.
+#
 
 awk -v $karg -v $oarg 'function hash(s, cmd, hex, line) {
    cmd = "openssl sha256 <<< \"" s "\""
@@ -89,16 +103,19 @@ BEGIN {
    OFS = "|"
 }
 NR == 1 {
-   if (keygen == "true") { print "Generating hash keys ..."}
+   if (NF != 3) {
+     print "ERROR: input file has incorrect format."
+     exit
+   } else {
+     if ($1 != "UDID" || $2 != "App Name" || $3 != "Seller") {
+       print "ERROR: input file has incorrect format."
+       exit
+     }
+   }
+   if (keygen == "true") {print "Generating hash keys ..."}
    else {print "Generating hashed list ..."}
    next
 }
-#
-# The second line includes the device UDID in field 1.
-# We will use a has of the UDID to uniquely name the output
-# files, the keys and the shared hashes. The first six
-# characters of the UDID hash are appended to each output file.
-#
 NR == 2 {
    ofile=fileout "_" substr(hash($1),1, 6) ".txt";
    split($2, subfield, "(");
@@ -106,8 +123,12 @@ NR == 2 {
    h[NR-1]=hash(subfield[1]);
    if (keygen == "true") {
      a[NR-1]=subfield[1];
-     print "Writing keys to file " ofile
-     print 1, h[NR-1], a[NR-1] > ofile
+     if (fileout == "stdout") {
+       print 1, h[NR-1], a[NR-1]
+     } else {
+       print "Writing keys to file " ofile
+       print 1, h[NR-1], a[NR-1] > ofile
+     }
    } else {
      if (fileout == "stdout") {
        print h[NR-1]
@@ -124,7 +145,11 @@ NR == 2 {
    h[NR-1]=hash(subfield[1]);
    if (keygen == "true") {
      a[NR-1]=subfield[1];
-     print NR-1,h[NR-1], a[NR-1] > ofile
+     if (fileout == "stdout") {
+        print NR-1,h[NR-1], a[NR-1]
+     } else {
+        print NR-1,h[NR-1], a[NR-1] > ofile
+     }
    } else {
      if (fileout == "stdout") {
        print h[NR-1]
