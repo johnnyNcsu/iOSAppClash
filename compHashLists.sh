@@ -105,6 +105,6 @@ do
       echo "Skipping local file: $eachfile"
    else
       echo "Comparing file: $eachfile ..."
-      awk 'BEGIN {FS = "|"; count=0} NR==FNR {n[$2]=$3; next} {count+=1; if ($0 in n) print count, $0, n[$0]}' $LOCAL_KEY_FILE $eachfile
+      awk 'BEGIN {FS = "|"; count=0} NR==FNR {n[$2]=$3; next} {if ($0 in n) {count+=1; print count, $0, n[$0]}}' $LOCAL_KEY_FILE $eachfile
    fi
 done
