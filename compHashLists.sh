@@ -62,7 +62,9 @@ if [ $keyFilenames_array_len == 1 ]
 then
     #awk -F '_' 'FNR==1 { split($2, subfield, "."); print "keyAppList_" $2 ","  subfield[1]; next}' <<< $keyFilenames
 #    IFS=' ' read strippedKeyName hashedUDID <<< $(awk -F '_' 'FNR==1 { split($2, subfield, "."); print "keyAppList_" $2 " " subfield[1]; next}' <<< $keyFilenames)
-    echo "Key file found:" ${KEY_FILE_PREFIX}${KEY_FILE_DELIMITER}${hashedUDID}${KEY_FILE_SUFFIX}
+    LOCAL_KEY_FILE=${KEY_FILE_PREFIX}${KEY_FILE_DELIMITER}${hashedUDID}${KEY_FILE_SUFFIX}
+    echo "Key file found: ${LOCAL_KEY_FILE}"
+    LOCAL_KEY_FILE=${KEY_FILE_PATH}${LOCAL_KEY_FILE}
 else
     echo "WARNING: multiple key files found! Using:" ${KEY_FILE_PREFIX}${KEY_FILE_DELIMITER}${hashedUDID}${KEY_FILE_SUFFIX}
 fi
@@ -103,5 +105,6 @@ do
       echo "Skipping local file: $eachfile"
    else
       echo "Comparing file: $eachfile ..."
+      awk 'BEGIN {FS = "|"; count=0} NR==FNR {n[$2]=$3; next} {count+=1; if ($0 in n) print count, $0, n[$0]}' $LOCAL_KEY_FILE $eachfile
    fi
 done
