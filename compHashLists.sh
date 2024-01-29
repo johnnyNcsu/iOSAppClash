@@ -68,6 +68,7 @@ else
 fi
 
 echo "Local unique identifier:" $hashedUDID 
+LOCAL_UPLOAD_FILE="${KEY_FILE_PATH}${UPLOAD_FILE_PREFIX}${UPLOAD_FILE_DELIMITER}${hashedUDID}${UPLOAD_FILE_SUFFIX}"
 
 # Build array of all filenames in current directory matching the names of the form:
 #      <upload_><AAAAAA><.txt>
@@ -88,8 +89,19 @@ IFS=$'\n' read -r -d '' -a UPLOAD_FILE_ARRAY <<< "$(find -E . -regex $UPLOAD_FIL
 
 UPLOAD_FILE_ARRAY_LEN="${#UPLOAD_FILE_ARRAY[@]}"
 
+if [ $UPLOAD_FILE_ARRAY_LEN == 0 ]
+then
+    echo "No upload files to compare. Done."
+    exit 1
+fi
+
 echo "Number of upload files:" $UPLOAD_FILE_ARRAY_LEN
 for eachfile in ${UPLOAD_FILE_ARRAY[@]}
 do
-   echo $eachfile
+   if [ $LOCAL_UPLOAD_FILE == $eachfile ]
+   then
+      echo "Skipping local file: $eachfile"
+   else
+      echo "Comparing file: $eachfile ..."
+   fi
 done
