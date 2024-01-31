@@ -8,7 +8,7 @@
 
 # Check for the locally generated hash and key files. The key file will have the
 # form: 
-#   KEY_FILE_OFF='./keyAppList\_[[:alnum:]]{6}\.txt'
+#   KEY_FILE='./keyAppList\_[[:alnum:]]{6}\.txt'
 #
 # We construct that by seperating its constituent parts as follows:
 
@@ -122,3 +122,49 @@ do
            else {print "No matches found"}}' $LOCAL_KEY_FILE $eachfile
    fi
 done
+
+MATCH_FILE=${MATCH_FILE_PREFIX}\\${MATCH_FILE_DELIMITER}${UNIQUE_ID_REGEX}\\${MATCH_FILE_SUFFIX}
+IFS=$'\n' read -r -d '' -a matchFilenames <<< "$(find -E . -regex ${MATCH_FILE_PATH}${MATCH_FILE})"
+matchFilenames_array_len="${#matchFilenames[@]}"
+
+#
+# If we find no matches, we're done.
+#
+
+if [ $matchFilenames_array_len == 0 ]
+then
+  >&1 printf 'No matches found in compared files. Nothing else to do.'
+  exit 1
+fi
+
+echo "Local device contains matching applications on $matchFilenames_array_len other device(s)."
+
+#
+# If we find only 1 device with matches, we are also done.
+#
+
+if [ $matchFilenames_array_len == 1 ]
+then
+  >&1 printf 'Matches found on single device are listed in output file: %s\n' "${matchFilenames[0]}"
+  exit 1
+fi
+
+#
+# With multiple matches, we can histogram results to see if any apps pop out ...
+#
+
+echo "Histograming results:"
+
+for eachfile in ${matchFilenames[@]}
+do
+  echo "Analyzing file: $eachfile ..."
+  IFS=' ' read hashedUDID <<< $(awk -F '_' 'FNR==1 { split($2, subfield, "."); print subfield[1]; next}' <<< $eachfile]})
+  echo "Histograming applications for device: $hashedUDID"
+#  MATCH_FILE=${MATCH_FILE_PREFIX}${MATCH_FILE_DELIMITER}${hashedUDID}${MATCH_FILE_SUFFIX}
+#  awk -v filein=$LOCAL_KEY_FILE -v fileout=$MATCH_FILE 'BEGIN {FS = "|"; count=0}
+#      NR==FNR {keys[$2]=$3; next}
+#      {if ($0 in keys) {if (count==0) {print "Matches with keyfile:", filein > fileout}; {count+=1; print count, $0, keys[$0] > fileout}}}
+#  END {if (count>0) {print "Writing", count, "matches to:", fileout; exit}
+#       else {print "No matches found"}}' $LOCAL_KEY_FILE $eachfile
+done 
+
