@@ -25,15 +25,23 @@ UPLOAD_FILE_SUFFIX=$KEY_FILE_SUFFIX
 HASH_FILE="./hashAppList.txt"
 UPLOAD_FILE='./upload\_[[:alnum:]]{6}\.txt'
 
+MATCH_FILE_PATH=$KEY_FILE_PATH
+MATCH_FILE_PREFIX='match'
+MATCH_FILE_DELIMITER=$KEY_FILE_DELIMITER
+MATCH_FILE_SUFFIX=$KEY_FILE_SUFFIX
+
 # and then adding the parts together as so:
 
-KEY_FILE="${KEY_FILE_PATH}${KEY_FILE_PREFIX}\\${KEY_FILE_DELIMITER}${UNIQUE_ID_REGEX}\\${KEY_FILE_SUFFIX}"
+KEY_FILE="${KEY_FILE_PREFIX}\\${KEY_FILE_DELIMITER}${UNIQUE_ID_REGEX}\\${KEY_FILE_SUFFIX}"
 
-# We do this because we are primarily interested in recovering the six character
+# We left the path off the KEY_FILE string becuase it makes it more readable when
+# printing for later use. The path string will be added as needed later.
+
+# We build the string this way because we are interested in recovering the six character
 # UNIQUE_ID that follows the '_' delimiter in the file name. To find the users
 # UNIQUE_ID, we first locate the key files by finding files that match our regex.
 
-IFS=$'\n' read -r -d '' -a keyFilenames <<< "$(find -E . -regex $KEY_FILE)"
+IFS=$'\n' read -r -d '' -a keyFilenames <<< "$(find -E . -regex ${KEY_FILE_PATH}${KEY_FILE})"
 
 #
 # Recover the number of files found matching our regex. Ideally this will be 1.
@@ -47,7 +55,7 @@ keyFilenames_array_len="${#keyFilenames[@]}"
 
 if [ $keyFilenames_array_len == 0 ]
 then
-  >&2 printf 'ERROR: key file not found! File name must match regular expression: %s\n' "${KEY_FILE}"
+  >&2 printf 'ERROR: key file not found! File name must match regular expression: %s\n' "${KEY_FILE_PATH}${KEY_FILE}"
   exit 1
 fi
 
@@ -64,7 +72,7 @@ then
 #    IFS=' ' read strippedKeyName hashedUDID <<< $(awk -F '_' 'FNR==1 { split($2, subfield, "."); print "keyAppList_" $2 " " subfield[1]; next}' <<< $keyFilenames)
     LOCAL_KEY_FILE=${KEY_FILE_PREFIX}${KEY_FILE_DELIMITER}${hashedUDID}${KEY_FILE_SUFFIX}
     echo "Key file found: ${LOCAL_KEY_FILE}"
-    LOCAL_KEY_FILE=${KEY_FILE_PATH}${LOCAL_KEY_FILE}
+#    LOCAL_KEY_FILE=${KEY_FILE_PATH}${LOCAL_KEY_FILE}
 else
     echo "WARNING: multiple key files found! Using:" ${KEY_FILE_PREFIX}${KEY_FILE_DELIMITER}${hashedUDID}${KEY_FILE_SUFFIX}
 fi
@@ -105,6 +113,12 @@ do
       echo "Skipping local file: $eachfile"
    else
       echo "Comparing file: $eachfile ..."
-      awk 'BEGIN {FS = "|"; count=0} NR==FNR {n[$2]=$3; next} {if ($0 in n) {count+=1; print count, $0, n[$0]}}' $LOCAL_KEY_FILE $eachfile
+      IFS=' ' read hashedUDID <<< $(awk -F '_' 'FNR==1 { split($2, subfield, "."); print subfield[1]; next}' <<< $eachfile]})
+      MATCH_FILE=${MATCH_FILE_PREFIX}${MATCH_FILE_DELIMITER}${hashedUDID}${MATCH_FILE_SUFFIX}
+      awk -v filein=$LOCAL_KEY_FILE -v fileout=$MATCH_FILE 'BEGIN {FS = "|"; count=0}
+          NR==FNR {keys[$2]=$3; next}
+          {if ($0 in keys) {if (count==0) {print "Matches with keyfile:", filein > fileout}; {count+=1; print count, $0, keys[$0] > fileout}}}
+      END {if (count>0) {print "Writing", count, "matches to:", fileout; exit}
+           else {print "No matches found"}}' $LOCAL_KEY_FILE $eachfile
    fi
 done
