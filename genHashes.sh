@@ -115,10 +115,10 @@ NR == 2 {
    if (keygen == "true") {
      a[NR-1]=subfield[1];
      if (fileout == "stdout") {
-       print 1, h[NR-1], a[NR-1]
+       printf "%3d|%64s|%30s|\n", 1, h[NR-1], a[NR-1]
      } else {
        print "Writing keys to file " ofile
-       print 1, h[NR-1], a[NR-1] > ofile
+       printf "%3d|%64s|%30s|\n", 1, h[NR-1], a[NR-1] > ofile
      }
    } else {
      if (fileout == "stdout") {
@@ -137,9 +137,9 @@ NR == 2 {
    if (keygen == "true") {
      a[NR-1]=subfield[1];
      if (fileout == "stdout") {
-        print NR-1,h[NR-1], a[NR-1]
+        printf "%3d|%64s|%30s|\n", NR-1,h[NR-1], a[NR-1]
      } else {
-        print NR-1,h[NR-1], a[NR-1] > ofile
+        printf "%3d|%64s|%30s|\n", NR-1,h[NR-1], a[NR-1] > ofile
      }
    } else {
      if (fileout == "stdout") {
