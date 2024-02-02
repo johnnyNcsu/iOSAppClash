@@ -6,6 +6,37 @@
 # and key lists and downloaded hashed lists from other participating users from
 # the designated cloud share upload repository.
 
+usage() {
+    echo
+    echo "Usage: ${0##*/} [-k]"
+    echo "   where"
+    echo "     -k  when set, will keep intermediate match files. The default is to remove them when no"
+    echo "         longer needed."
+    echo
+    exit 2;
+}
+
+VALID_ARGS=$(getopt k $*)
+if [ $? -ne 0 ]; then
+    usage
+fi
+
+eval set -- "$VALID_ARGS"
+unset karg
+
+while :; do
+  case "$1" in
+    -k)
+        karg="keep=true"
+        shift
+        ;;
+
+    --) shift;
+        break
+        ;;
+  esac
+done
+
 # Check for the locally generated hash and key files. The key file will have the
 # form: 
 #   KEY_FILE='./keyAppList\_[[:alnum:]]{6}\.txt'
@@ -179,6 +210,16 @@ do
 
   rm $HISTOGRAM_FILE
   mv "histogram_temp.txt" $HISTOGRAM_FILE
+
+#
+# If -k option is not set, remove the intermediate match files.
+#
+
+  if [ ! -n "$karg" ]; then
+    echo "Removing intermediate file: $eachfile"
+    rm $eachfile
+  fi
+
 done 
 
 echo "Analysis results written to file: $HISTOGRAM_FILE"
