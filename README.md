@@ -17,7 +17,7 @@ While not a perfect method, this is a "good" level of privacy for the intended u
 
 1. Connect your iPhone with a Macintosh computer via USB.
 2. Run [Apple's Configurator app](https://apps.apple.com/us/app/apple-configurator/id1037126344?mt=12) to read and export the list of installed 3rd party apps from your device as a csv file.
-3. Run the shell script **creatMyHashes.sh** with the file you named to contain the exported list as the input source:<br>
+3. Run the shell script **createMyHashes.sh** with the file you named to contain the exported list as the input source:<br>
    `shell prompt$ createMyHashes.sh <filename>`<br>
 4. Share the upload file with other participants on a public upload site.
 5. When other participant files are available to download, download those files.
