@@ -30,6 +30,10 @@ MATCH_FILE_PREFIX='match'
 MATCH_FILE_DELIMITER=$KEY_FILE_DELIMITER
 MATCH_FILE_SUFFIX=$KEY_FILE_SUFFIX
 
+HISTOGRAM_FILE_PATH=$KEY_FILE_PATH
+HISTOGRAM_FILE_PREFIX='histogram'
+HISTOGRAM_FILE_SUFFIX=$KEY_FILE_SUFFIX
+
 # and then adding the parts together as so:
 
 KEY_FILE="${KEY_FILE_PREFIX}\\${KEY_FILE_DELIMITER}${UNIQUE_ID_REGEX}\\${KEY_FILE_SUFFIX}"
@@ -64,21 +68,21 @@ fi
 # the six characters between the '_' delimiter and the '.' before the prefix.
 #
 
-IFS=' ' read hashedUDID <<< $(awk -F '_' 'FNR==1 { split($2, subfield, "."); print subfield[1]; next}' <<< ${keyFilenames[0]})
+IFS=' ' read localUDID <<< $(awk -F '_' 'FNR==1 { split($2, subfield, "."); print subfield[1]; next}' <<< ${keyFilenames[0]})
 
 if [ $keyFilenames_array_len == 1 ]
 then
     #awk -F '_' 'FNR==1 { split($2, subfield, "."); print "keyAppList_" $2 ","  subfield[1]; next}' <<< $keyFilenames
-#    IFS=' ' read strippedKeyName hashedUDID <<< $(awk -F '_' 'FNR==1 { split($2, subfield, "."); print "keyAppList_" $2 " " subfield[1]; next}' <<< $keyFilenames)
-    LOCAL_KEY_FILE=${KEY_FILE_PREFIX}${KEY_FILE_DELIMITER}${hashedUDID}${KEY_FILE_SUFFIX}
+#    IFS=' ' read strippedKeyName localUDID <<< $(awk -F '_' 'FNR==1 { split($2, subfield, "."); print "keyAppList_" $2 " " subfield[1]; next}' <<< $keyFilenames)
+    LOCAL_KEY_FILE=${KEY_FILE_PREFIX}${KEY_FILE_DELIMITER}${localUDID}${KEY_FILE_SUFFIX}
     echo "Key file found: ${LOCAL_KEY_FILE}"
 #    LOCAL_KEY_FILE=${KEY_FILE_PATH}${LOCAL_KEY_FILE}
 else
-    echo "WARNING: multiple key files found! Using:" ${KEY_FILE_PREFIX}${KEY_FILE_DELIMITER}${hashedUDID}${KEY_FILE_SUFFIX}
+    echo "WARNING: multiple key files found! Using:" ${KEY_FILE_PREFIX}${KEY_FILE_DELIMITER}${localUDID}${KEY_FILE_SUFFIX}
 fi
 
-echo "Local unique identifier:" $hashedUDID 
-LOCAL_UPLOAD_FILE="${KEY_FILE_PATH}${UPLOAD_FILE_PREFIX}${UPLOAD_FILE_DELIMITER}${hashedUDID}${UPLOAD_FILE_SUFFIX}"
+echo "Local unique identifier:" $localUDID 
+LOCAL_UPLOAD_FILE="${KEY_FILE_PATH}${UPLOAD_FILE_PREFIX}${UPLOAD_FILE_DELIMITER}${localUDID}${UPLOAD_FILE_SUFFIX}"
 
 # Build array of all filenames in current directory matching the names of the form:
 #      <upload_><AAAAAA><.txt>
@@ -117,7 +121,7 @@ do
       MATCH_FILE=${MATCH_FILE_PREFIX}${MATCH_FILE_DELIMITER}${hashedUDID}${MATCH_FILE_SUFFIX}
       awk -v filein=$LOCAL_KEY_FILE -v fileout=$MATCH_FILE 'BEGIN {FS = "|"; count=0}
           NR==FNR {keys[$2]=$3; next}
-          {if ($0 in keys) {if (count==0) {print "Matches with keyfile:", filein > fileout}; {count+=1; print count, $0, keys[$0] > fileout}}}
+          {if ($0 in keys) {count+=1; print $0 > fileout}}
       END {if (count>0) {print "Writing", count, "matches to:", fileout; exit}
            else {print "No matches found"}}' $LOCAL_KEY_FILE $eachfile
    fi
@@ -140,31 +144,41 @@ fi
 echo "Local device contains matching applications on $matchFilenames_array_len other device(s)."
 
 #
-# If we find only 1 device with matches, we are also done.
-#
-
-if [ $matchFilenames_array_len == 1 ]
-then
-  >&1 printf 'Matches found on single device are listed in output file: %s\n' "${matchFilenames[0]}"
-  exit 1
-fi
-
-#
-# With multiple matches, we can histogram results to see if any apps pop out ...
+# With one or more matches, we can histogram results ...
 #
 
 echo "Histograming results:"
+
+#
+# The local key file is the initial histogram result - the list of installed apps on the
+#  local device.
+#
+
+HISTOGRAM_FILE=${HISTOGRAM_FILE_PREFIX}${HISTOGRAM_FILE_SUFFIX}
+cp $LOCAL_KEY_FILE $HISTOGRAM_FILE
+
+#
+# Iterate over each match file looking for matched hashes and appending the udid of
+# a foreign device to the matched hash record. Repeat this process for each match file
+# forming a histogram of udid's where app matches occur.
+#
 
 for eachfile in ${matchFilenames[@]}
 do
   echo "Analyzing file: $eachfile ..."
   IFS=' ' read hashedUDID <<< $(awk -F '_' 'FNR==1 { split($2, subfield, "."); print subfield[1]; next}' <<< $eachfile]})
   echo "Histograming applications for device: $hashedUDID"
-#  MATCH_FILE=${MATCH_FILE_PREFIX}${MATCH_FILE_DELIMITER}${hashedUDID}${MATCH_FILE_SUFFIX}
-#  awk -v filein=$LOCAL_KEY_FILE -v fileout=$MATCH_FILE 'BEGIN {FS = "|"; count=0}
-#      NR==FNR {keys[$2]=$3; next}
-#      {if ($0 in keys) {if (count==0) {print "Matches with keyfile:", filein > fileout}; {count+=1; print count, $0, keys[$0] > fileout}}}
-#  END {if (count>0) {print "Writing", count, "matches to:", fileout; exit}
-#       else {print "No matches found"}}' $LOCAL_KEY_FILE $eachfile
+  awk -v udid=$hashedUDID -v filein=$HISTOGRAM_FILE 'BEGIN {FS = "|"; OFS="";  count=0}
+      NR==FNR {hashes[$0]=0; next}
+      {if ($2 in hashes) {print $0,udid,"|" > "histogram_temp.txt"}
+       else { print $0 > "histogram_temp.txt"}}' $eachfile $HISTOGRAM_FILE
+
+#
+# Remove the old histogram file and replace it with the temporary histogram just written.
+#
+
+rm $HISTOGRAM_FILE
+mv "histogram_temp.txt" $HISTOGRAM_FILE
 done 
 
+echo "Analysis results written to file: $HISTOGRAM_FILE"
