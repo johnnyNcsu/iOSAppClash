@@ -177,8 +177,8 @@ do
 # Remove the old histogram file and replace it with the temporary histogram just written.
 #
 
-rm $HISTOGRAM_FILE
-mv "histogram_temp.txt" $HISTOGRAM_FILE
+  rm $HISTOGRAM_FILE
+  mv "histogram_temp.txt" $HISTOGRAM_FILE
 done 
 
 echo "Analysis results written to file: $HISTOGRAM_FILE"
