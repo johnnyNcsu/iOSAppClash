@@ -1,4 +1,10 @@
 #!/bin/bash
+#
+# Description: given a csv input file generated using Apple's Configurator application that
+#   was used to generate a manifest of installed applications on an iPhone. The output is either
+#   a key file or a hash file depending on the state of the -k command line switch.
+#
+
 usage() {
     echo "Usage: ${0##*/} -i filename [-k] [-o filename]"
     echo "   where"
