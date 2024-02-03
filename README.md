@@ -17,12 +17,21 @@ While not a perfect method, this is a "good" level of privacy for the intended u
 
 1. Connect your iPhone with a Macintosh computer via USB.
 2. Run [Apple's Configurator app](https://apps.apple.com/us/app/apple-configurator/id1037126344?mt=12) to read and export the list of installed 3rd party apps from your device as a csv file.
-3. Run the shell script **creatMyHashes.sh** with the file you named to contain the exported list as the input source:<br>
-   `shell prompt$ createMyHashes.sh <filename>`<br>
-4. Share the upload file with other participants on a public upload site.
-5. When other participant files are available to download, download those files.
-6. Run the comparator shell script to check for common apps among devices.
-7. Share results.
+3. Run the shell script **createMyHashes.sh** with the file you named to contain the exported list as the input source:<br><br>
+   `shell prompt$ createMyHashes.sh <filename>`<br><br>
+   This will create two files of the form:<br><br>
+   ```
+   keyAppList_AAAAAA.txt
+   upload_AAAAAA.txt
+   ```
+     where `AAAAAA` is the local identifier created from the hash of the device UDID.<br><br>
+5. Share the upload file with other participants on a public upload site.
+6. When other participant files are available to download, download those files to your working directory.
+7. Run the comparator shell script to check for common apps among devices:<br><br>
+   `shell prompt$ compHashLists.sh`<br><br>
+   This will create the resulting `histogram.txt` file which contains a histogram showing which apps are present on your local device as well as other participant devices. The histogram will be a left to right series of 6 charater device identifiers written on the line of each app name installed on the local device. The row with the most device identifiers will be the candidate app most likely to be the cause of any aberrant behavior.
+
+8. Share results.
 
 
 
