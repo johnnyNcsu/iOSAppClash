@@ -100,16 +100,13 @@ fi
 #
 
 IFS=' ' read localUDID <<< $(awk -F '_' 'FNR==1 { split($2, subfield, "."); print subfield[1]; next}' <<< ${keyFilenames[0]})
+LOCAL_KEY_FILE=${KEY_FILE_PREFIX}${KEY_FILE_DELIMITER}${localUDID}${KEY_FILE_SUFFIX}
 
 if [ $keyFilenames_array_len == 1 ]
 then
-    #awk -F '_' 'FNR==1 { split($2, subfield, "."); print "keyAppList_" $2 ","  subfield[1]; next}' <<< $keyFilenames
-#    IFS=' ' read strippedKeyName localUDID <<< $(awk -F '_' 'FNR==1 { split($2, subfield, "."); print "keyAppList_" $2 " " subfield[1]; next}' <<< $keyFilenames)
-    LOCAL_KEY_FILE=${KEY_FILE_PREFIX}${KEY_FILE_DELIMITER}${localUDID}${KEY_FILE_SUFFIX}
     echo "Key file found: ${LOCAL_KEY_FILE}"
-#    LOCAL_KEY_FILE=${KEY_FILE_PATH}${LOCAL_KEY_FILE}
 else
-    echo "WARNING: multiple key files found! Using:" ${KEY_FILE_PREFIX}${KEY_FILE_DELIMITER}${localUDID}${KEY_FILE_SUFFIX}
+    echo "WARNING: multiple key files found! Using:" ${LOCAL_KEY_FILE}
 fi
 
 echo "Local unique identifier:" $localUDID 
@@ -168,7 +165,7 @@ matchFilenames_array_len="${#matchFilenames[@]}"
 
 if [ $matchFilenames_array_len == 0 ]
 then
-  >&1 printf 'No matches found in compared files. Nothing else to do.'
+  >&1 printf 'No matches found in compared files. Nothing else to do.\n'
   exit 1
 fi
 
@@ -186,6 +183,21 @@ echo "Histograming results:"
 #
 
 HISTOGRAM_FILE=${HISTOGRAM_FILE_PREFIX}${HISTOGRAM_FILE_SUFFIX}
+
+if [ -f "$HISTOGRAM_FILE" ]; then
+  read -p "WARNING: found previous histogram file! Overwrite (y/n)? " answer
+  case ${answer:0:1} in
+    y|Y)
+       echo "Overwrting existing histogram file."
+       rm $HISTOGRAM_FILE
+    ;;
+    * )
+       echo "Moving histogram file to $HISTOGRAM_FILE_PREFIX.bak"
+       mv "$HISTOGRAM_FILE" "$HISTOGRAM_FILE_PREFIX".bak
+    ;;
+  esac
+fi
+
 cp $LOCAL_KEY_FILE $HISTOGRAM_FILE
 
 #
