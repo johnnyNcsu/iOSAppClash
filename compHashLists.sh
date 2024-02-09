@@ -8,26 +8,34 @@
 
 usage() {
     echo
-    echo "Usage: ${0##*/} [-k]"
+    echo "Usage: ${0##*/} [-k] [-l]"
     echo "   where"
     echo "     -k  when set, will keep intermediate match files. The default is to remove them when no"
     echo "         longer needed."
+    echo "     -l  long output. When set, will include 64 character long hash values in histogram output"
+    echo "         file."
     echo
     exit 2;
 }
 
-VALID_ARGS=$(getopt k $*)
+VALID_ARGS=$(getopt kl $*)
 if [ $? -ne 0 ]; then
     usage
 fi
 
 eval set -- "$VALID_ARGS"
 unset karg
+unset larg
 
 while :; do
   case "$1" in
     -k)
         karg="keep=true"
+        shift
+        ;;
+
+    -l)
+        larg="trim=false"
         shift
         ;;
 
@@ -63,11 +71,12 @@ MATCH_FILE_SUFFIX=$KEY_FILE_SUFFIX
 
 HISTOGRAM_FILE_PATH=$KEY_FILE_PATH
 HISTOGRAM_FILE_PREFIX='histogram'
+HISTOGRAM_FILE_DELIMITER=$KEY_FILE_DELIMITER
 HISTOGRAM_FILE_SUFFIX=$KEY_FILE_SUFFIX
 HISTOGRAM_BAKUP_SUFFIX='.bak'
 HISTOGRAM_BAKUP_FILE=$HISTOGRAM_FILE_PREFIX
 HISTOGRAM_BAKUP_ORDINAL_REGEX='[[:digit:]]{1,2}'
-
+HISTOGRAM_TMP_DESIGNATOR='tmp'
 # and then adding the parts together as so:
 
 KEY_FILE="${KEY_FILE_PREFIX}\\${KEY_FILE_DELIMITER}${UNIQUE_ID_REGEX}\\${KEY_FILE_SUFFIX}"
@@ -150,7 +159,7 @@ do
       echo "Comparing file: $eachfile ..."
       IFS=' ' read hashedUDID <<< $(awk -F '_' 'FNR==1 { split($2, subfield, "."); print subfield[1]; next}' <<< $eachfile]})
       MATCH_FILE=${MATCH_FILE_PREFIX}${MATCH_FILE_DELIMITER}${hashedUDID}${MATCH_FILE_SUFFIX}
-      awk -v filein=$LOCAL_KEY_FILE -v fileout=$MATCH_FILE 'BEGIN {FS = "|"; count=0}
+      awk -v fileout=$MATCH_FILE 'BEGIN {FS = "|"; count=0}
           NR==FNR {keys[$2]=$3; next}
           {if ($0 in keys) {count+=1; print $0 > fileout}}
       END {if (count>0) {print "Writing", count, "matches to:", fileout; exit}
@@ -182,7 +191,7 @@ echo "Histograming results:"
 
 #
 # The local key file is the initial histogram result - the list of installed apps on the
-#  local device.
+# local device.
 #
 
 HISTOGRAM_FILE=${HISTOGRAM_FILE_PREFIX}${HISTOGRAM_FILE_SUFFIX}
@@ -215,22 +224,24 @@ cp $LOCAL_KEY_FILE $HISTOGRAM_FILE
 # forming a histogram of udid's where app matches occur.
 #
 
+HISTOGRAM_TMP_FILE="${HISTOGRAM_FILE_PREFIX}${HISTOGRAM_FILE_DELIMITER}${HISTOGRAM_TMP_DESIGNATOR}${HISTOGRAM_FILE_SUFFIX}"
+
 for eachfile in ${matchFilenames[@]}
 do
   echo "Analyzing file: $eachfile ..."
   IFS=' ' read hashedUDID <<< $(awk -F '_' 'FNR==1 { split($2, subfield, "."); print subfield[1]; next}' <<< $eachfile]})
   echo "Histograming applications for device: $hashedUDID"
-  awk -v udid=$hashedUDID -v filein=$HISTOGRAM_FILE 'BEGIN {FS = "|"; OFS="";  count=0}
+  awk -v fileout=$HISTOGRAM_TMP_FILE -v udid=$hashedUDID 'BEGIN {FS = "|"; OFS=""}
       NR==FNR {hashes[$0]=0; next}
-      {if ($2 in hashes) {print $0,udid,"|" > "histogram_temp.txt"}
-       else { print $0 > "histogram_temp.txt"}}' $eachfile $HISTOGRAM_FILE
+      {if ($2 in hashes) {print $0,udid,"|" > fileout}
+       else { print $0 > fileout}}' $eachfile $HISTOGRAM_FILE
 
 #
 # Remove the old histogram file and replace it with the temporary histogram just written.
 #
 
   rm $HISTOGRAM_FILE
-  mv "histogram_temp.txt" $HISTOGRAM_FILE
+  mv $HISTOGRAM_TMP_FILE $HISTOGRAM_FILE
 
 #
 # If -k option is not set, remove the intermediate match files.
@@ -242,5 +253,25 @@ do
   fi
 
 done 
+
+#
+# If -l option is not set, trim the final result of hashes for readability otherwise
+# leave the hashed app names in for long output.
+#
+
+mv $HISTOGRAM_FILE $HISTOGRAM_TMP_FILE
+
+if [ ! -n "$larg" ]; then
+  echo "Removing hashes from final result ..."
+  awk -v fileout=$HISTOGRAM_FILE 'BEGIN {FS = "|"; OFS=""}
+     NR==1 { print "CNT|  App Names on Local Device   | Histogram of 6 Character Unique IDs of Devices With The Named Application Installed" > fileout;
+             print "---|------------------------------|------------------------------------------------------------------------------------" > fileout}
+     { print $1 substr($0, index($0,$2)+length($2)) > fileout; next}' $HISTOGRAM_TMP_FILE
+else
+  awk -v fileout=$HISTOGRAM_FILE 'BEGIN {FS = "|"; OFS=""}
+     NR==1 { print "CNT|                    Hash of App Name                            |  App Names on Local Device   | Histogram of 6 Character Unique IDs of Devices With The Named Application Installed" > fileout;
+             print "---|----------------------------------------------------------------|------------------------------|------------------------------------------------------------------------------------" > fileout}
+     { print $0 > fileout; next}' $HISTOGRAM_TMP_FILE
+fi
 
 echo "Analysis results written to file: $HISTOGRAM_FILE"
