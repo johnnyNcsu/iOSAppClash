@@ -54,7 +54,7 @@ UPLOAD_FILE_PREFIX='upload'
 UPLOAD_FILE_DELIMITER=$KEY_FILE_DELIMITER
 UPLOAD_FILE_SUFFIX=$KEY_FILE_SUFFIX
 HASH_FILE="./hashAppList.txt"
-UPLOAD_FILE='./upload\_[[:alnum:]]{6}\.txt'
+#UPLOAD_FILE='./upload\_[[:alnum:]]{6}\.txt'
 
 MATCH_FILE_PATH=$KEY_FILE_PATH
 MATCH_FILE_PREFIX='match'
@@ -64,6 +64,9 @@ MATCH_FILE_SUFFIX=$KEY_FILE_SUFFIX
 HISTOGRAM_FILE_PATH=$KEY_FILE_PATH
 HISTOGRAM_FILE_PREFIX='histogram'
 HISTOGRAM_FILE_SUFFIX=$KEY_FILE_SUFFIX
+HISTOGRAM_BAKUP_SUFFIX='.bak'
+HISTOGRAM_BAKUP_FILE=$HISTOGRAM_FILE_PREFIX
+HISTOGRAM_BAKUP_ORDINAL_REGEX='[[:digit:]]{1,2}'
 
 # and then adding the parts together as so:
 
@@ -192,8 +195,14 @@ if [ -f "$HISTOGRAM_FILE" ]; then
        rm $HISTOGRAM_FILE
     ;;
     * )
-       echo "Moving histogram file to $HISTOGRAM_FILE_PREFIX.bak"
-       mv "$HISTOGRAM_FILE" "$HISTOGRAM_FILE_PREFIX".bak
+       HISTOGRAM_BAKUP_FILE=${HISTOGRAM_FILE_PREFIX}${HISTOGRAM_BAKUP_SUFFIX}
+       if [ -f "$HISTOGRAM_BAKUP_FILE" ]; then
+         IFS=$'\n' read -r -d '' -a histogramBakupFiles <<< "$(find -E . -regex ${HISTOGRAM_FILE_PATH}${HISTOGRAM_FILE_PREFIX}${HISTOGRAM_BAKUP_ORDINAL_REGEX}\\${HISTOGRAM_BAKUP_SUFFIX})"
+         histogramBakupFiles_array_len="${#histogramBakupFiles[@]}"
+         printf -v HISTOGRAM_BAKUP_FILE '%s%d%s' "$HISTOGRAM_FILE_PREFIX" "$((histogramBakupFiles_array_len+2))" "$HISTOGRAM_BAKUP_SUFFIX"
+       fi
+       echo "Moving $HISTOGRAM_FILE to $HISTOGRAM_BAKUP_FILE"
+       mv "$HISTOGRAM_FILE" "$HISTOGRAM_BAKUP_FILE"
     ;;
   esac
 fi
