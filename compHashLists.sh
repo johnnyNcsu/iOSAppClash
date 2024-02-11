@@ -6,13 +6,15 @@
 # and key lists and downloaded hashed lists from other participating users from
 # the designated cloud share upload repository.
 
+source globals.sh
+
 usage() {
     echo
     echo "Usage: ${0##*/} [-k] [-l]"
     echo "   where"
     echo "     -k  when set, will keep intermediate match files. The default is to remove them when no"
     echo "         longer needed."
-    echo "     -l  long output. When set, will include 64 character long hash values in histogram output"
+    printf '     -l  long output. When set, will include %d character long hash values in histogram output\n' $HASH_STRING_LEN
     echo "         file."
     echo
     exit 2;
@@ -46,7 +48,7 @@ while :; do
 done
 
 # Check for the locally generated hash and key files. The key file will have the
-# form: 
+# form (assumes $UNIQUE_ID_FIELD_LEN=6): 
 #   KEY_FILE='./keyAppList\_[[:alnum:]]{6}\.txt'
 #
 # We construct that by seperating its constituent parts as follows:
@@ -54,7 +56,7 @@ done
 KEY_FILE_PATH='./'
 KEY_FILE_PREFIX='keyAppList'
 KEY_FILE_DELIMITER='_'
-UNIQUE_ID_REGEX='[[:alnum:]]{6}'
+UNIQUE_ID_REGEX='[[:alnum:]]{'$UNIQUE_ID_FIELD_LEN'}'
 KEY_FILE_SUFFIX='.txt'
 
 UPLOAD_FILE_PATH=$KEY_FILE_PATH
@@ -62,7 +64,6 @@ UPLOAD_FILE_PREFIX='upload'
 UPLOAD_FILE_DELIMITER=$KEY_FILE_DELIMITER
 UPLOAD_FILE_SUFFIX=$KEY_FILE_SUFFIX
 HASH_FILE="./hashAppList.txt"
-#UPLOAD_FILE='./upload\_[[:alnum:]]{6}\.txt'
 
 MATCH_FILE_PATH=$KEY_FILE_PATH
 MATCH_FILE_PREFIX='match'
@@ -124,11 +125,12 @@ fi
 echo "Local unique identifier:" $localUDID 
 LOCAL_UPLOAD_FILE="${KEY_FILE_PATH}${UPLOAD_FILE_PREFIX}${UPLOAD_FILE_DELIMITER}${localUDID}${UPLOAD_FILE_SUFFIX}"
 
-# Build array of all filenames in current directory matching the names of the form:
-#      <upload_><AAAAAA><.txt>
+# Build array of all filenames in current directory matching the names of the form (assumes $UNIQUE_ID_FIELD_LEN
+# is set to 6 which governs the length of the unique ID field):
+#      <upload_><UUUUUU><.txt>
 #           where:
 #               upload_ is the ASCII name prefix followed by the UDID delimiter.
-#               AAAAAA  is the fist six characters of the hash of the UDID from which the
+#               UUUUUU  is the fist six characters (for example) of the hash of the UDID from which the
 #                       app list was generated.
 #               .txt    is the filetype extension.
 #
@@ -263,13 +265,17 @@ mv $HISTOGRAM_FILE $HISTOGRAM_TMP_FILE
 
 if [ ! -n "$larg" ]; then
   echo "Removing hashes from final result ..."
-  awk -v fileout=$HISTOGRAM_FILE 'BEGIN {FS = "|"; OFS=""}
-     NR==1 { print "CNT|  App Names on Local Device   | Histogram of 6 Character Unique IDs of Devices With The Named Application Installed" > fileout;
-             print "---|------------------------------|------------------------------------------------------------------------------------" > fileout}
+  awk -v fileout=$HISTOGRAM_FILE -v namelen=$IOS_NAME_LEN -v uidlen=$UNIQUE_ID_FIELD_LEN 'BEGIN {FS = "|"; OFS=""}
+     NR==1 { printf "CNT|% *s| Histogram of %d Character Unique IDs of Devices With The Named Application Installed\n", \
+               namelen, "  App Names on Local Device   ", uidlen > fileout;
+             print "---|------------------------------|------------------------------------------------------------------------------------"\
+               > fileout}
      { print $1 substr($0, index($0,$2)+length($2)) > fileout; next}' $HISTOGRAM_TMP_FILE
 else
-  awk -v fileout=$HISTOGRAM_FILE 'BEGIN {FS = "|"; OFS=""}
-     NR==1 { print "CNT|                    Hash of App Name                            |  App Names on Local Device   | Histogram of 6 Character Unique IDs of Devices With The Named Application Installed" > fileout;
+  awk -v fileout=$HISTOGRAM_FILE -v hashlen=$HASH_STRING_LEN -v namelen=$IOS_NAME_LEN -v uidlen=$UNIQUE_ID_FIELD_LEN 'BEGIN {FS = "|"; OFS=""}
+     NR==1 { printf "CNT|%.*s|% *s| Histogram of %d Character Unique IDs of Devices With The Named Application Installed\n",\
+               hashlen, "                    Hash of App Name                            ", namelen, "  App Names on Local Device   ",\
+               uidlen > fileout;
              print "---|----------------------------------------------------------------|------------------------------|------------------------------------------------------------------------------------" > fileout}
      { print $0 > fileout; next}' $HISTOGRAM_TMP_FILE
 fi

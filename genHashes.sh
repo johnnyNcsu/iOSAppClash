@@ -5,6 +5,8 @@
 #   a key file or a hash file depending on the state of the -k command line switch.
 #
 
+source globals.sh
+
 usage() {
     echo "Usage: ${0##*/} -i filename [-k] [-o filename]"
     echo "   where"
@@ -13,10 +15,10 @@ usage() {
     echo "     -k  when set, will generate a list of hash/key pairs for the installed 3rd party applications"
     echo "         on the device from which the export list came from."
     echo "     -o  optional base output filename. The base filename will be appended with the unique ID"
-    echo "         for this device. The resulting outpout filename will be of the form:"
-    echo "            <filename>_UUUUUU.txt"
+    echo "         for this device. The resulting output filename will be of the form:"
+    printf '            <filename>_%.*s.txt\n' $UNIQUE_ID_FIELD_LEN 'UUUUUUUUUUUUUUUUUUUU'
     echo "               where"
-    echo "                  UUUUUU  is the first 6 characters of the SHA256 hash of the UDID."
+    printf '                  %.*s is the first %d characters of the SHA256 hash of the UDID.\n' $UNIQUE_ID_FIELD_LEN 'UUUUUUUUUUUUUUUUUUUU' $UNIQUE_ID_FIELD_LEN
     echo "         If no filename is given, output will be to stdout."
     exit 2;
 }
@@ -88,7 +90,8 @@ fi
 # 4) otherwise process all remaining file records for output to hash or key file.
 #
 
-awk -v $karg -v $oarg 'function hash(s, cmd, hex, line) {
+awk -v $karg -v $oarg -v uidlen=$UNIQUE_ID_FIELD_LEN -v hslen=$HASH_STRING_LEN \
+    -v namelen=$IOS_NAME_LEN 'function hash(s, cmd, hex, line) {
    cmd = "openssl sha256 <<< \"" s "\""
    if ( (cmd | getline line) > 0)
       hex = line
@@ -114,17 +117,17 @@ NR == 1 {
    next
 }
 NR == 2 {
-   ofile=fileout "_" substr(hash($1),1, 6) ".txt";
+   ofile=fileout "_" substr(hash($1),1, uidlen) ".txt";
    split($2, subfield, "(");
    {gsub(/[[:space:]]+$/,"",subfield[1])};
    h[NR-1]=hash(subfield[1]);
    if (keygen == "true") {
      a[NR-1]=subfield[1];
      if (fileout == "stdout") {
-       printf "%3d|%64s|%30s|\n", 1, h[NR-1], a[NR-1]
+       printf "%3d|%*s|% *s|\n", 1, hslen, h[NR-1], namelen, a[NR-1]
      } else {
        print "Writing keys to file " ofile
-       printf "%3d|%64s|%30s|\n", 1, h[NR-1], a[NR-1] > ofile
+       printf "%3d|%*s|% *s|\n", 1, hslen, h[NR-1], namelen, a[NR-1] > ofile
      }
    } else {
      if (fileout == "stdout") {
@@ -143,9 +146,9 @@ NR == 2 {
    if (keygen == "true") {
      a[NR-1]=subfield[1];
      if (fileout == "stdout") {
-        printf "%3d|%64s|%30s|\n", NR-1,h[NR-1], a[NR-1]
+        printf "%3d|%*s|% *s|\n", NR-1, hslen, h[NR-1], namelen, a[NR-1]
      } else {
-        printf "%3d|%64s|%30s|\n", NR-1,h[NR-1], a[NR-1] > ofile
+        printf "%3d|%*s|% *s|\n", NR-1, hslen, h[NR-1], namelen, a[NR-1] > ofile
      }
    } else {
      if (fileout == "stdout") {
