@@ -6,12 +6,14 @@
 # assigned to a participating device. This ID is created by taking the first N characters
 # (where N is the numerical value assigned to the UNIQUE_ID_FIELD_LEN) of the SHA256 hash
 # of the UDID (unique device ID) for each device. Setting this value to fewer than 6 may
-# result in ID collisions as the number of participating devices grows. For groups less than
-# 100, the probability of a collision is a 3 in 10,000 chance. However, for groups of 1000,
-# the probability of a collision is 3%! In other words, we should expect approximately 30
-# collisions if we use 6 character IDs with 1000 participating devices. For this reason,
-# the UNIQUE_ID_FIELD_LEN with value should be increased to 10 characters for safety with
-# large groups. These scripts can support up to 20 character IDs without modification and
+# result in ID collisions as the number of participating devices grows.
+#
+# With a 6 character unique ID, for device groups including 100 or fewer devices, the
+# probability of an ID collision is a 3 in 10,000 chance. However, for groups of 1000 devices,
+# the probability of a collision increases to 3%! In other words, we should expect approximately
+# 30 collisions if we use 6 character IDs with 1000 participating devices. For this reason,
+# the UNIQUE_ID_FIELD_LEN with value should be increased to prevent ID collisions with large
+# groups of devices. These scripts can support up to 20 character IDs without modification and
 # larger with minor changes.
 #
 # The unique ID is used in the key and upload filenames to guarantee each a unique name and
