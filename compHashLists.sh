@@ -10,8 +10,11 @@ source globals.sh
 
 usage() {
     echo
-    echo "Usage: ${0##*/} [-k] [-l]"
+    echo "Usage: ${0##*/} [-c] [-k] [-l]"
     echo "   where"
+    echo "     -c  when set, histogram bars will be constructed using the character X to represent a"
+    echo "         device with the designated app installed. When not set, histogram bars will be"
+    echo "         constructed using the unique ID of the device with the designated app installed."
     echo "     -k  when set, will keep intermediate match files. The default is to remove them when no"
     echo "         longer needed."
     printf '     -l  long output. When set, will include %d character long hash values in histogram output\n' $HASH_STRING_LEN
@@ -20,17 +23,23 @@ usage() {
     exit 2;
 }
 
-VALID_ARGS=$(getopt kl $*)
+VALID_ARGS=$(getopt ckl $*)
 if [ $? -ne 0 ]; then
     usage
 fi
 
 eval set -- "$VALID_ARGS"
+unset carg
 unset karg
 unset larg
 
 while :; do
   case "$1" in
+    -c)
+        carg="charhist=true"
+        shift
+        ;;
+
     -k)
         karg="keep=true"
         shift
@@ -265,19 +274,36 @@ mv $HISTOGRAM_FILE $HISTOGRAM_TMP_FILE
 
 if [ ! -n "$larg" ]; then
   echo "Removing hashes from final result ..."
-  awk -v fileout=$HISTOGRAM_FILE -v namelen=$IOS_NAME_LEN -v uidlen=$UNIQUE_ID_FIELD_LEN 'BEGIN {FS = "|"; OFS=""}
-     NR==1 { printf "CNT|% *s| Histogram of %d Character Unique IDs of Devices With The Named Application Installed\n", \
+  awk -v fileout=$HISTOGRAM_FILE -v namelen=$IOS_NAME_LEN -v uidlen=$UNIQUE_ID_FIELD_LEN -v $carg 'BEGIN {FS = "|"; OFS=""}
+     NR==1 { if (charhist == "true") {
+               printf "CNT|% *s| Histogram Showing Number of Devices With The Named Application Installed\n", \
+               namelen, "  App Names on Local Device   " > fileout;
+             } else {
+               printf "CNT|% *s| Histogram of %d Character Unique IDs of Devices With The Named Application Installed\n", \
                namelen, "  App Names on Local Device   ", uidlen > fileout;
+             }
              print "---|------------------------------|------------------------------------------------------------------------------------"\
                > fileout}
-     { print $1 substr($0, index($0,$2)+length($2)) > fileout; next}' $HISTOGRAM_TMP_FILE
+     { if (charhist == "true") {
+         printf "%s|%s|", $1, $3 > fileout;
+         for ( i=4; i < NF; i++ ) printf "%s", "X" > fileout; printf"\n" > fileout
+       } else { print $1 substr($0, index($0,$2)+length($2)) > fileout; next}}' $HISTOGRAM_TMP_FILE
 else
-  awk -v fileout=$HISTOGRAM_FILE -v hashlen=$HASH_STRING_LEN -v namelen=$IOS_NAME_LEN -v uidlen=$UNIQUE_ID_FIELD_LEN 'BEGIN {FS = "|"; OFS=""}
-     NR==1 { printf "CNT|%.*s|% *s| Histogram of %d Character Unique IDs of Devices With The Named Application Installed\n",\
+  awk -v fileout=$HISTOGRAM_FILE -v hashlen=$HASH_STRING_LEN -v namelen=$IOS_NAME_LEN -v uidlen=$UNIQUE_ID_FIELD_LEN -v $carg 'BEGIN {FS = "|"; OFS=""}
+     NR==1 { if (charhist == "true") {
+               printf "CNT|%.*s|% *s| Histogram Showing Number of Devices With The Named Application Installed\n",\
+               hashlen, "                    Hash of App Name                            ", namelen, "  App Names on Local Device   "\
+               > fileout;
+             } else {
+               printf "CNT|%.*s|% *s| Histogram of %d Character Unique IDs of Devices With The Named Application Installed\n",\
                hashlen, "                    Hash of App Name                            ", namelen, "  App Names on Local Device   ",\
                uidlen > fileout;
+             }
              print "---|----------------------------------------------------------------|------------------------------|------------------------------------------------------------------------------------" > fileout}
-     { print $0 > fileout; next}' $HISTOGRAM_TMP_FILE
+     { if (charhist == "true") {
+         printf "%s|%s|%s|", $1, $2, $3 > fileout;
+         for ( i=4; i < NF; i++ ) printf "%s", "X" > fileout; printf"\n" > fileout
+     } else { print $0 > fileout; next}}' $HISTOGRAM_TMP_FILE
 fi
 
 echo "Analysis results written to file: $HISTOGRAM_FILE"
