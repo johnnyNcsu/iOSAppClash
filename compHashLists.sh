@@ -31,7 +31,7 @@ if [ $? -ne 0 ]; then
 fi
 
 eval set -- "$VALID_ARGS"
-unset carg
+carg="charhist=false"
 unset karg
 unset larg
 unset parg
@@ -291,7 +291,6 @@ if [ -n "$parg" ]; then
   echo "Pruning results ..."
   awk -v fileout=$HISTOGRAM_TMP_FILE 'BEGIN {FS = "|"; OFS=""}
      { printf "%3d|%s\n", NF-4, $0 > fileout }' $HISTOGRAM_FILE
-fi
 
 # Next, sort the records in reverse order.
 
@@ -301,9 +300,9 @@ fi
 # numeric value of pruning equal to the total number of apps on local device
 # as determined by the number of records in the histogram file at this point.
 
-if [[ "$parg" == "pruneval=+" ]]; then
-  IFS=' ' read parg <<< $(echo "pruneval="$(cut -d " " -f1 <<< $(wc -l $HISTOGRAM_FILE)))
-fi
+  if [[ "$parg" == "pruneval=+" ]]; then
+    IFS=' ' read parg <<< $(echo "pruneval="$(cut -d " " -f1 <<< $(wc -l $HISTOGRAM_FILE)))
+  fi
 
 # Next, preserve the top N scores. At this step, also delete the ordinal app count
 # which carries little meaning now. It is replaced by the histogram score.
@@ -313,9 +312,13 @@ fi
      { if (score == $1) print $1 substr($0,8)  > fileout
        else { count++; score=$1;
          if ( count > pruneval ) exit 1}}' $HISTOGRAM_FILE
+else
 
-#exit 1
-#mv $HISTOGRAM_FILE $HISTOGRAM_TMP_FILE
+# Not pruning, copy histogram output to tmp file.
+
+  mv $HISTOGRAM_FILE $HISTOGRAM_TMP_FILE
+
+fi
 
 #
 # If -l option is not set, trim the final result of hashes for readability otherwise
@@ -329,7 +332,7 @@ if [ ! -n "$larg" ]; then
                printf "%s|% *s| Histogram Showing Number of Devices With The Named Application Installed\n", \
                header1, namelen, "  App Names on Local Device   " > fileout;
              } else {
-               printf "|% *s| Histogram of %d Character Unique IDs of Devices With The Named Application Installed\n", \
+               printf "%s|% *s| Histogram of %d Character Unique IDs of Devices With The Named Application Installed\n", \
                header1, namelen, "  App Names on Local Device   ", uidlen > fileout;
              }
              print "---|------------------------------|------------------------------------------------------------------------------------"\
