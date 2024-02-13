@@ -10,7 +10,7 @@ source globals.sh
 
 usage() {
     echo
-    echo "Usage: ${0##*/} [-c] [-k] [-l]"
+    echo "Usage: ${0##*/} [-c] [-k] [-l] [-pN]"
     echo "   where"
     echo "     -c  when set, histogram bars will be constructed using the character X to represent a"
     echo "         device with the designated app installed. When not set, histogram bars will be"
@@ -19,11 +19,13 @@ usage() {
     echo "         longer needed."
     printf '     -l  long output. When set, will include %d character long hash values in histogram output\n' $HASH_STRING_LEN
     echo "         file."
+    echo "     -pN prune output to include only the N highest scoring records sorted from highest to"
+    echo "         lowest scores. Use -p+ to output all records from highest to lowest scores."
     echo
     exit 2;
 }
 
-VALID_ARGS=$(getopt ckl $*)
+VALID_ARGS=$(getopt cklp: $*)
 if [ $? -ne 0 ]; then
     usage
 fi
@@ -32,6 +34,9 @@ eval set -- "$VALID_ARGS"
 unset carg
 unset karg
 unset larg
+unset parg
+
+FIELD_1_HEADER="CNT"
 
 while :; do
   case "$1" in
@@ -48,6 +53,16 @@ while :; do
     -l)
         larg="trim=false"
         shift
+        ;;
+
+    -p)
+        if ! [[ "$2" =~ (^[0-9]{1,}$) || "$2" == "+" ]]; then
+          echo "ERROR: prune value must be an integer or the '+' character."
+          usage
+        fi
+        parg="pruneval=$2"
+        FIELD_1_HEADER="SCR"
+        shift 2
         ;;
 
     --) shift;
@@ -168,7 +183,7 @@ do
       echo "Skipping local file: $eachfile"
    else
       echo "Comparing file: $eachfile ..."
-      IFS=' ' read hashedUDID <<< $(awk -F '_' 'FNR==1 { split($2, subfield, "."); print subfield[1]; next}' <<< $eachfile]})
+      IFS=' ' read hashedUDID <<< $(awk -F '_' 'FNR==1 { split($2, subfield, "."); print subfield[1]; next}' <<< $eachfile})
       MATCH_FILE=${MATCH_FILE_PREFIX}${MATCH_FILE_DELIMITER}${hashedUDID}${MATCH_FILE_SUFFIX}
       awk -v fileout=$MATCH_FILE 'BEGIN {FS = "|"; count=0}
           NR==FNR {keys[$2]=$3; next}
@@ -240,7 +255,7 @@ HISTOGRAM_TMP_FILE="${HISTOGRAM_FILE_PREFIX}${HISTOGRAM_FILE_DELIMITER}${HISTOGR
 for eachfile in ${matchFilenames[@]}
 do
   echo "Analyzing file: $eachfile ..."
-  IFS=' ' read hashedUDID <<< $(awk -F '_' 'FNR==1 { split($2, subfield, "."); print subfield[1]; next}' <<< $eachfile]})
+  IFS=' ' read hashedUDID <<< $(awk -F '_' 'FNR==1 { split($2, subfield, "."); print subfield[1]; next}' <<< $eachfile})
   echo "Histograming applications for device: $hashedUDID"
   awk -v fileout=$HISTOGRAM_TMP_FILE -v udid=$hashedUDID 'BEGIN {FS = "|"; OFS=""}
       NR==FNR {hashes[$0]=0; next}
@@ -265,22 +280,57 @@ do
 
 done 
 
+# At this point, we have a raw output file with a full histogram built with unique
+# device IDs. From here, we can tailor the output to the users desired needs.
+
+if [ -n "$parg" ]; then
+
+# In order to prune the results, we must first sort the records in order of highest
+# score first. Pre-prend the score of each record to the output string.
+
+  echo "Pruning results ..."
+  awk -v fileout=$HISTOGRAM_TMP_FILE 'BEGIN {FS = "|"; OFS=""}
+     { printf "%3d|%s\n", NF-4, $0 > fileout }' $HISTOGRAM_FILE
+fi
+
+# Next, sort the records in reverse order.
+
+  sort -r -k1 -t "|" -o $HISTOGRAM_FILE $HISTOGRAM_TMP_FILE
+
+# If user selected to include all histogram scores (pruneval=+), then set the
+# numeric value of pruning equal to the total number of apps on local device
+# as determined by the number of records in the histogram file at this point.
+
+if [[ "$parg" == "pruneval=+" ]]; then
+  IFS=' ' read parg <<< $(echo "pruneval="$(cut -d " " -f1 <<< $(wc -l $HISTOGRAM_FILE)))
+fi
+
+# Next, preserve the top N scores. At this step, also delete the ordinal app count
+# which carries little meaning now. It is replaced by the histogram score.
+
+  awk -v fileout=$HISTOGRAM_TMP_FILE -v $parg 'BEGIN {FS = "|"; OFS=""}
+     NR==1 { count=1; score=$1; print $1 substr($0,8)  > fileout }
+     { if (score == $1) print $1 substr($0,8)  > fileout
+       else { count++; score=$1;
+         if ( count > pruneval ) exit 1}}' $HISTOGRAM_FILE
+
+#exit 1
+#mv $HISTOGRAM_FILE $HISTOGRAM_TMP_FILE
+
 #
 # If -l option is not set, trim the final result of hashes for readability otherwise
 # leave the hashed app names in for long output.
 #
 
-mv $HISTOGRAM_FILE $HISTOGRAM_TMP_FILE
-
 if [ ! -n "$larg" ]; then
   echo "Removing hashes from final result ..."
-  awk -v fileout=$HISTOGRAM_FILE -v namelen=$IOS_NAME_LEN -v uidlen=$UNIQUE_ID_FIELD_LEN -v $carg 'BEGIN {FS = "|"; OFS=""}
+  awk -v fileout=$HISTOGRAM_FILE -v namelen=$IOS_NAME_LEN -v uidlen=$UNIQUE_ID_FIELD_LEN -v $carg -v header1=$FIELD_1_HEADER 'BEGIN {FS = "|"; OFS=""}
      NR==1 { if (charhist == "true") {
-               printf "CNT|% *s| Histogram Showing Number of Devices With The Named Application Installed\n", \
-               namelen, "  App Names on Local Device   " > fileout;
+               printf "%s|% *s| Histogram Showing Number of Devices With The Named Application Installed\n", \
+               header1, namelen, "  App Names on Local Device   " > fileout;
              } else {
-               printf "CNT|% *s| Histogram of %d Character Unique IDs of Devices With The Named Application Installed\n", \
-               namelen, "  App Names on Local Device   ", uidlen > fileout;
+               printf "|% *s| Histogram of %d Character Unique IDs of Devices With The Named Application Installed\n", \
+               header1, namelen, "  App Names on Local Device   ", uidlen > fileout;
              }
              print "---|------------------------------|------------------------------------------------------------------------------------"\
                > fileout}
@@ -289,14 +339,14 @@ if [ ! -n "$larg" ]; then
          for ( i=4; i < NF; i++ ) printf "%s", "X" > fileout; printf"\n" > fileout
        } else { print $1 substr($0, index($0,$2)+length($2)) > fileout; next}}' $HISTOGRAM_TMP_FILE
 else
-  awk -v fileout=$HISTOGRAM_FILE -v hashlen=$HASH_STRING_LEN -v namelen=$IOS_NAME_LEN -v uidlen=$UNIQUE_ID_FIELD_LEN -v $carg 'BEGIN {FS = "|"; OFS=""}
+  awk -v fileout=$HISTOGRAM_FILE -v hashlen=$HASH_STRING_LEN -v namelen=$IOS_NAME_LEN -v uidlen=$UNIQUE_ID_FIELD_LEN -v $carg -v header1=$FIELD_1_HEADER 'BEGIN {FS = "|"; OFS=""}
      NR==1 { if (charhist == "true") {
-               printf "CNT|%.*s|% *s| Histogram Showing Number of Devices With The Named Application Installed\n",\
-               hashlen, "                    Hash of App Name                            ", namelen, "  App Names on Local Device   "\
+               printf "%s|%.*s|% *s| Histogram Showing Number of Devices With The Named Application Installed\n",\
+               header1, hashlen, "                    Hash of App Name                            ", namelen, "  App Names on Local Device   "\
                > fileout;
              } else {
-               printf "CNT|%.*s|% *s| Histogram of %d Character Unique IDs of Devices With The Named Application Installed\n",\
-               hashlen, "                    Hash of App Name                            ", namelen, "  App Names on Local Device   ",\
+               printf "%s|%.*s|% *s| Histogram of %d Character Unique IDs of Devices With The Named Application Installed\n",\
+               header1, hashlen, "                    Hash of App Name                            ", namelen, "  App Names on Local Device   ",\
                uidlen > fileout;
              }
              print "---|----------------------------------------------------------------|------------------------------|------------------------------------------------------------------------------------" > fileout}
