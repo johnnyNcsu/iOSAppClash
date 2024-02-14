@@ -6,9 +6,7 @@
 #    operation in the comparison stage and possible an auto-fetch operation.
 #
 
-KEY_FILE_PREFIX='keyAppList'
-
-UPLOAD_FILE_PREFIX='upload'
+source defaults.sh
 
 usage() {
     >&2 printf 'Usage: ./%s file.csv\n' "${0##*/}"

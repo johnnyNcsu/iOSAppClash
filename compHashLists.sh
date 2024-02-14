@@ -6,6 +6,7 @@
 # and key lists and downloaded hashed lists from other participating users from
 # the designated cloud share upload repository.
 
+source defaults.sh
 source globals.sh
 
 usage() {
@@ -89,13 +90,11 @@ done
 # We construct that by seperating its constituent parts as follows:
 
 KEY_FILE_PATH='./'
-KEY_FILE_PREFIX='keyAppList'
 KEY_FILE_DELIMITER='_'
 UNIQUE_ID_REGEX='[[:alnum:]]{'$UNIQUE_ID_FIELD_LEN'}'
 KEY_FILE_SUFFIX='.txt'
 
 UPLOAD_FILE_PATH=$KEY_FILE_PATH
-UPLOAD_FILE_PREFIX='upload'
 UPLOAD_FILE_DELIMITER=$KEY_FILE_DELIMITER
 UPLOAD_FILE_SUFFIX=$KEY_FILE_SUFFIX
 HASH_FILE="./hashAppList.txt"
