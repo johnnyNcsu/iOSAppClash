@@ -10,11 +10,12 @@ source globals.sh
 
 usage() {
     echo
-    echo "Usage: ${0##*/} [-c] [-k] [-l] [-pN]"
+    echo "Usage: ${0##*/} [-c] [-h] [-k] [-l] [-pN]"
     echo "   where"
     echo "     -c  when set, histogram bars will be constructed using the character X to represent a"
     echo "         device with the designated app installed. When not set, histogram bars will be"
     echo "         constructed using the unique ID of the device with the designated app installed."
+    echo "     -h  Prints a brief help message as well as this usage messaqge."
     echo "     -k  when set, will keep intermediate match files. The default is to remove them when no"
     echo "         longer needed."
     printf '     -l  long output. When set, will include %d character long hash values in histogram output\n' $HASH_STRING_LEN
@@ -25,7 +26,7 @@ usage() {
     exit 2;
 }
 
-VALID_ARGS=$(getopt cklp: $*)
+VALID_ARGS=$(getopt chklp: $*)
 if [ $? -ne 0 ]; then
     usage
 fi
@@ -42,6 +43,16 @@ while :; do
   case "$1" in
     -c)
         carg="charhist=true"
+        shift
+        ;;
+
+    -h)
+        echo "This script is designed to process the data files produced by running the script 'genHashes.sh'."
+        echo "This script consumes a local key file and typically multiple hash files that list the apps"
+        echo "installed on the iPhone from which they were produced. This script produces a histogram"
+        echo "representing the number of installations of the named app appearing on both the local device and"
+        echo "any number of external devices."
+        usage
         shift
         ;;
 
