@@ -370,3 +370,10 @@ else
 fi
 
 echo "Analysis results written to file: $HISTOGRAM_FILE"
+
+#
+# Remove tmp file.
+#
+
+rm $HISTOGRAM_TMP_FILE
+
