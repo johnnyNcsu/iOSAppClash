@@ -318,7 +318,7 @@ if [ -n "$parg" ]; then
 # which carries little meaning now. It is replaced by the histogram score.
 
   awk -v fileout=$HISTOGRAM_TMP_FILE -v $parg 'BEGIN {FS = "|"; OFS=""}
-     NR==1 { count=1; score=$1; print $1 substr($0,8)  > fileout }
+     NR==1 { count=1; score=$1; print $1 substr($0,8)  > fileout; next }
      { if (score == $1) print $1 substr($0,8)  > fileout
        else { count++; score=$1;
          if ( count > pruneval ) exit 1}}' $HISTOGRAM_FILE
