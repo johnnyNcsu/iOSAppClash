@@ -311,7 +311,7 @@ if [ -n "$parg" ]; then
 # as determined by the number of records in the histogram file at this point.
 
   if [[ "$parg" == "pruneval=+" ]]; then
-    IFS=' ' read parg <<< $(awk 'END { printf "pruneval=%3d\n", NR }' $HISTOGRAM_FILE)
+    IFS=' ' read parg <<< $(awk 'END { printf "pruneval=%d\n", NR }' $HISTOGRAM_FILE)
   fi
 
 # Next, preserve the top N scores. At this step, also delete the ordinal app count
